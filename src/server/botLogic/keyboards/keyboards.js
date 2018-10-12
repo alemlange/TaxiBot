@@ -1,12 +1,20 @@
 import { InlineKeyboard, ReplyKeyboard } from "node-telegram-keyboard-wrapper";
 
-const startKeyBoard = new ReplyKeyboard();
+//Config Start keyboard
+let startKeyBoard = new ReplyKeyboard();
 startKeyBoard.addRow("Оставить заказ");
 startKeyBoard.addRow("Мои заказы");
 
-const inActionKeyBoard = new ReplyKeyboard();
+startKeyBoard = startKeyBoard.open();
+startKeyBoard.reply_markup.resize_keyboard = true;
+
+//Config keyboard for ordering
+let inActionKeyBoard = new ReplyKeyboard();
 inActionKeyBoard.addRow("Отменить заказ");
-//inActionKeyBoard.addRow("Отправить заказ");
+
+inActionKeyBoard = inActionKeyBoard.open();
+inActionKeyBoard.reply_markup.resize_keyboard = true;
+
 
 export const keyboards={
     RK:{
@@ -29,10 +37,19 @@ export function dateKeyboard(){
         third.setDate(third.getDate() + i + 2);
 
         weekKeyBoard.addRow(
-            { text: first.getDate() + "/" + (first.getMonth() + 1), callback_data: "date_" + first.getDate() + "/" + (first.getMonth() + 1)},
-            { text: second.getDate() + "/" + (second.getMonth() + 1), callback_data: "date_" + second.getDate() + "/" + (second.getMonth() + 1)},
-            { text: third.getDate() + "/" + (third.getMonth() + 1), callback_data: "date_" + third.getDate() + "/" + (third.getMonth() + 1)},);
+            {
+                text: first.getDate() + "/" + (first.getMonth() + 1),
+                callback_data: "date_" + first.getDate() + "/" + (first.getMonth() + 1) + "/" + first.getFullYear()
+            },
+            {
+                text: second.getDate() + "/" + (second.getMonth() + 1),
+                callback_data: "date_" + second.getDate() + "/" + (second.getMonth() + 1) + "/" + first.getFullYear()
+            },
+            {
+                text: third.getDate() + "/" + (third.getMonth() + 1),
+                callback_data: "date_" + third.getDate() + "/" + (third.getMonth() + 1) + "/" + first.getFullYear()
+            });
     }
 
-    return weekKeyBoard;
+    return weekKeyBoard.export();
 }

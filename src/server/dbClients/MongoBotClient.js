@@ -30,6 +30,49 @@ export default class MongoBotClient {
 
     };
 
+    assignAddress = async(chatId, address) =>{
+
+        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        await client.connect();
+        const db = client.db(this.#dbName);
+
+        try{
+            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active"}, {$set: {address: address}});
+        }
+        finally {
+            client.close();
+        }
+    };
+
+    assignDate = async(chatId, date) => {
+
+        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        await client.connect();
+        const db = client.db(this.#dbName);
+
+        try{
+            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active", arriveDate: null}, {$set: {arriveDate: date}});
+        }
+        finally {
+            client.close();
+        }
+    };
+
+    assignDateAndTime = async(chatId, date) => {
+
+        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        await client.connect();
+        const db = client.db(this.#dbName);
+
+        try{
+            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active"}, {$set: {arriveDate: date, timeSet: true}});
+        }
+        finally {
+            client.close();
+        }
+
+    };
+
     insertNewOrder = async(record) => {
         const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
         await client.connect();

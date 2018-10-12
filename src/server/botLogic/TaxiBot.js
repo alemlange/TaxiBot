@@ -1,4 +1,5 @@
 import TelegramBot from 'node-telegram-bot-api';
+import {botCommands} from "./botCommands";
 import {dateKeyboard,keyboards} from "./keyboards/keyboards"
 
 export default class TaxiBot{
@@ -27,13 +28,19 @@ export default class TaxiBot{
     }
 
     configureActions(){
-        /*this.#botApi.on('message', msg => {
-            this.#botApi.sendMessage(msg.chat.id, 'I am alive!');
-        });*/
+        this.#botApi.on('text', msg => {
+
+            if(!botCommands.includes(msg.text)){
+                if(!/([01]\d|2[0-3]):?([0-5]\d)/.test(msg.text)){
+
+                    this._setAddress(msg, msg.text);
+                }
+            }
+        });
 
         this.#botApi.onText(/\/start/, (msg, match) => {
 
-            this.#botApi.sendMessage( msg.from.id, "Добро пожаловать.", keyboards.RK.startKeyBoard.open());
+            this.#botApi.sendMessage( msg.from.id, "Добро пожаловать.", keyboards.RK.startKeyBoard);
         });
 
         this.#botApi.onText(/Оставить заказ/, (msg, match) => {
@@ -51,34 +58,126 @@ export default class TaxiBot{
             this._cancelOrder(msg);
         });
 
+        this.#botApi.onText(/([01]\d|2[0-3]):?([0-5]\d)/, (msg, match) => {
+
+            this._setTime(msg, match[0]);
+        });
+
         this.#botApi.on("callback_query", (msg) =>{
-            let dateString = msg.data.split('_')[1];
 
-            this.#botApi.editMessageText("Вы выбрали: " + dateString, {message_id: msg.message.message_id, chat_id: msg.from.id});
+            let commandAndValue = msg.data.split('_');
 
-            //this.#botApi.answerCallbackQuery(msg.id, 'Вы выбрали: '+ dateString);
+            if(commandAndValue[0] === "date"){
+                this._setOrderDate(msg, msg.data.split('_')[1])
+            }
 
         });
     }
+
+    _setAddress = async (msg, text)=>{
+        let record = await this.#dbService.getActiveRecord(msg.chat.id);
+
+        if (record !== undefined){
+            if(record.timeSet && record.arriveDate !== null){
+                await this.#dbService.assignAddress(msg.chat.id, text);
+
+                this.#botApi.sendMessage(msg.chat.id, 'Адрес получен.');
+            }
+            else{
+                this.#botApi.sendMessage(msg.chat.id, 'Сначала нужно указать дату и время прибытия машины.');
+            }
+        }
+        else{
+            this.#botApi.sendMessage(msg.chat.id, 'У вас нет активных заказов.', keyboards.RK.startKeyBoard);
+        }
+
+    };
+
+    _setTime = async(msg, time) => {
+
+        let record = await this.#dbService.getActiveRecord(msg.chat.id);
+
+        if (record !== undefined){
+            if(record.arriveDate !== null){
+                if(!record.timeSet){
+                    let now = new Date();
+
+                    let timeArray = time.split(':');
+
+                    let oldDate = record.arriveDate;
+
+                    let dateWithTime = new Date(oldDate.getFullYear(), oldDate.getMonth(),
+                        oldDate.getDate(), timeArray[0], timeArray[1]);
+
+                    if(now < dateWithTime){
+                        await this.#dbService.assignDateAndTime(msg.from.id, dateWithTime);
+                        this.#botApi.sendMessage(msg.chat.id, 'Машина приедет в ' + time);
+
+                        this.#botApi.sendMessage(msg.chat.id, 'Введите адрес ');
+                    }
+                    else{
+                        this.#botApi.sendMessage(msg.chat.id, 'Не можем прислать машину в прошлое');
+                    }
+                }
+                else{
+                    this.#botApi.sendMessage(msg.chat.id, 'Вы уже указали время');
+                }
+            }
+            else{
+                this.#botApi.sendMessage(msg.chat.id, 'Сначала нужно выбрать дату.');
+            }
+        }
+        else{
+            this.#botApi.sendMessage(msg.chat.id, 'У вас нет активных заказов.', keyboards.RK.startKeyBoard);
+        }
+    };
+
+    _setOrderDate = async(msg, dateString) =>{
+
+        let activeRecord = await this.#dbService.getActiveRecord(msg.from.id);
+
+        if(activeRecord !== undefined){
+
+            if(activeRecord.arriveDate === null){
+
+                const dateArray = dateString.split('/');
+
+                let date = new Date(dateArray[2], dateArray[1] - 1, dateArray[0]);
+
+                await this.#dbService.assignDate(msg.from.id, date);
+
+                this.#botApi.editMessageText("Вы выбрали: " + dateString, {message_id: msg.message.message_id, chat_id: msg.from.id});
+
+                this.#botApi.answerCallbackQuery(msg.id, 'Вы выбрали: '+ dateString);
+
+                this.#botApi.sendMessage(msg.from.id, 'Выберите время прибытия:');
+            }
+            else{
+                this.#botApi.sendMessage(msg.from.id, 'Вы уже выбрали время прибытия');
+            }
+
+        }
+        else{
+            this.#botApi.sendMessage(msg.from.id, 'У вас нет активных заказов.', keyboards.RK.startKeyBoard);
+        }
+
+    };
 
     _startOrder = async(msg) => {
 
         let activeRecords = await this.#dbService.getActiveRecord(msg.chat.id);
 
-        const actionKeyBoard = keyboards.RK.inActionKeyBoard.open();
-        actionKeyBoard.reply_markup.resize_keyboard = true;
-
         if (activeRecords !== undefined){
-            this.#botApi.sendMessage(msg.chat.id, 'Вы уже в процессе заказа.', actionKeyBoard);
+            this.#botApi.sendMessage(msg.chat.id, 'Вы уже в процессе заказа.', keyboards.RK.inActionKeyBoard);
         }
         else{
             let order = {chatId: msg.from.id, status: "active", dateStarted: new Date(),
-                address:null, arriveDate: null, arriveTime: null };
+                address:null, arriveDate: null, timeSet: false };
 
             await this.#dbService.insertNewOrder(order);
 
-            this.#botApi.sendMessage(msg.chat.id, 'Для заказа заполните форму:', actionKeyBoard);
-            this.#botApi.sendMessage(msg.chat.id, 'Ваш заказ на:', dateKeyboard().export());
+            this.#botApi.sendMessage(msg.chat.id, 'Для заказа заполните форму:', keyboards.RK.inActionKeyBoard);
+            this.#botApi.sendMessage(msg.chat.id, 'Ваш заказ на:', dateKeyboard());
         }
 
     };
@@ -94,15 +193,12 @@ export default class TaxiBot{
     _cancelOrder = async(msg) => {
         let activeRecords = await this.#dbService.getActiveRecord(msg.chat.id);
 
-        const startKeyboard = keyboards.RK.startKeyBoard.open();
-        startKeyboard.reply_markup.resize_keyboard = true;
-
         if (activeRecords !== undefined){
             await this.#dbService.cancelOrder(msg.chat.id);
-            this.#botApi.sendMessage(msg.chat.id, 'Заказ отменен.', startKeyboard);
+            this.#botApi.sendMessage(msg.chat.id, 'Заказ отменен.', keyboards.RK.startKeyBoard);
         }
         else{
-            this.#botApi.sendMessage(msg.chat.id, 'Нечего отменять.', startKeyboard);
+            this.#botApi.sendMessage(msg.chat.id, 'Нечего отменять.', keyboards.RK.startKeyBoard);
         }
     };
 

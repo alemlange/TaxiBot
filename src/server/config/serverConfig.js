@@ -1,6 +1,6 @@
 export const serverConfig = {
     botToken: "601078001:AAGyM0SXqUag3C1DrQcYPxlUXHxBE9GG-XA",
-    serverUrl: "https://e15a2e4a.ngrok.io",
+    serverUrl: "https://5d5e065b.ngrok.io",
 
     dbUrl: "mongodb://localhost:27017/",
     dbName: "botDb"
