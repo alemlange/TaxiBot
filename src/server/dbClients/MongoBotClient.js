@@ -2,23 +2,25 @@ import mongodb from 'mongodb';
 
 export default class MongoBotClient {
 
-    #dbUrl = "";
+    dbUrl = "";
 
-    #dbName = "";
+    dbName = "";
+
+    mainCollection = "TaxiOrders";
 
     constructor(dbUrl, dbName){
-        this.#dbUrl = dbUrl;
-        this.#dbName = dbName;
+        this.dbUrl = dbUrl;
+        this.dbName = dbName;
     }
 
     getActiveRecord = async(chatId) => {
 
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try {
-            let orders = await db.collection("TaxiOrders").find({chatId: chatId, status:"active"}).limit(1).toArray();
+            let orders = await db.collection(this.mainCollection).find({chatId: chatId, status:"active"}).limit(1).toArray();
 
             return orders[0];
         } catch (err) {
@@ -32,12 +34,12 @@ export default class MongoBotClient {
 
     getPostedRecords = async(chatId) => {
 
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try {
-            return await db.collection("TaxiOrders").find({chatId: chatId, status:"posted"}).limit(5).toArray();
+            return await db.collection(this.mainCollection).find({chatId: chatId, status:"posted"}).limit(5).toArray();
 
         } catch (err) {
             console.log(err.stack);
@@ -50,12 +52,12 @@ export default class MongoBotClient {
 
     postOrder = async(chatId) =>{
 
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try{
-            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active"}, {$set: {status: "posted"}});
+            await db.collection(this.mainCollection).updateOne({chatId: chatId, status:"active"}, {$set: {status: "posted"}});
         }
         finally {
             client.close();
@@ -64,12 +66,12 @@ export default class MongoBotClient {
 
     assignAddress = async(chatId, address) =>{
 
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try{
-            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active"}, {$set: {address: address}});
+            await db.collection(this.mainCollection).updateOne({chatId: chatId, status:"active"}, {$set: {address: address}});
         }
         finally {
             client.close();
@@ -78,12 +80,12 @@ export default class MongoBotClient {
 
     assignDate = async(chatId, date) => {
 
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try{
-            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active", arriveDate: null}, {$set: {arriveDate: date}});
+            await db.collection(this.mainCollection).updateOne({chatId: chatId, status:"active", arriveDate: null}, {$set: {arriveDate: date}});
         }
         finally {
             client.close();
@@ -92,12 +94,12 @@ export default class MongoBotClient {
 
     assignDateAndTime = async(chatId, date) => {
 
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try{
-            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active"}, {$set: {arriveDate: date, timeSet: true}});
+            await db.collection(this.mainCollection).updateOne({chatId: chatId, status:"active"}, {$set: {arriveDate: date, timeSet: true}});
         }
         finally {
             client.close();
@@ -106,12 +108,14 @@ export default class MongoBotClient {
     };
 
     insertNewOrder = async(record) => {
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try{
-            await db.collection("TaxiOrders").insertOne(record);
+            await db.collection(this.mainCollection).insertOne(record);
+
+            return "Ok";
         }
         finally {
             client.close();
@@ -119,12 +123,14 @@ export default class MongoBotClient {
     };
 
     cancelOrder = async(chatId) =>{
-        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        const client = mongodb.MongoClient(this.dbUrl, { useNewUrlParser: true });
         await client.connect();
-        const db = client.db(this.#dbName);
+        const db = client.db(this.dbName);
 
         try{
-            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active"}, {$set: {status: "canceled"}});
+            await db.collection(this.mainCollection).updateOne({chatId: chatId, status:"active"}, {$set: {status: "canceled"}});
+
+            return "Ok"
         }
         finally {
             client.close();
