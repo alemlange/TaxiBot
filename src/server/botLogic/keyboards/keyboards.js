@@ -15,11 +15,17 @@ inActionKeyBoard.addRow("Отменить заказ");
 inActionKeyBoard = inActionKeyBoard.open();
 inActionKeyBoard.reply_markup.resize_keyboard = true;
 
+let completeKeyBoard = new InlineKeyboard();
+completeKeyBoard.addRow({text:"Отправить заказ", callback_data:"complete"});
+completeKeyBoard = completeKeyBoard.export();
 
 export const keyboards={
     RK:{
         startKeyBoard: startKeyBoard,
         inActionKeyBoard: inActionKeyBoard
+    },
+    IK:{
+        completeKeyBoard: completeKeyBoard
     }
 };
 

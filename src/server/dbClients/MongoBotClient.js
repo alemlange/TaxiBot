@@ -30,6 +30,38 @@ export default class MongoBotClient {
 
     };
 
+    getPostedRecords = async(chatId) => {
+
+        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        await client.connect();
+        const db = client.db(this.#dbName);
+
+        try {
+            return await db.collection("TaxiOrders").find({chatId: chatId, status:"posted"}).limit(5).toArray();
+
+        } catch (err) {
+            console.log(err.stack);
+        }
+        finally{
+            client.close();
+        }
+
+    };
+
+    postOrder = async(chatId) =>{
+
+        const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });
+        await client.connect();
+        const db = client.db(this.#dbName);
+
+        try{
+            await db.collection("TaxiOrders").updateOne({chatId: chatId, status:"active"}, {$set: {status: "posted"}});
+        }
+        finally {
+            client.close();
+        }
+    };
+
     assignAddress = async(chatId, address) =>{
 
         const client = mongodb.MongoClient(this.#dbUrl, { useNewUrlParser: true });

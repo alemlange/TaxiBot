@@ -70,9 +70,30 @@ export default class TaxiBot{
             if(commandAndValue[0] === "date"){
                 this._setOrderDate(msg, msg.data.split('_')[1])
             }
+            else if(commandAndValue[0] === "complete"){
+                this._postOrder(msg);
+            }
 
         });
     }
+
+    _postOrder = async (msg) =>{
+        let record = await this.#dbService.getActiveRecord(msg.from.id);
+
+        if (record !== undefined){
+            if(record.timeSet && record.arriveDate !== null && record.address !== null){
+                await this.#dbService.postOrder(msg.from.id);
+
+                this.#botApi.sendMessage(msg.from.id, 'Заказ получен, машина приедет точно всрок', keyboards.RK.startKeyBoard);
+            }
+            else{
+                this.#botApi.sendMessage(msg.from.id, 'Сначала нужно указать дату и время прибытия машины и адрес.');
+            }
+        }
+        else{
+            this.#botApi.sendMessage(msg.from.id, 'У вас нет активных заказов.', keyboards.RK.startKeyBoard);
+        }
+    };
 
     _setAddress = async (msg, text)=>{
         let record = await this.#dbService.getActiveRecord(msg.chat.id);
@@ -81,7 +102,7 @@ export default class TaxiBot{
             if(record.timeSet && record.arriveDate !== null){
                 await this.#dbService.assignAddress(msg.chat.id, text);
 
-                this.#botApi.sendMessage(msg.chat.id, 'Адрес получен.');
+                this.#botApi.sendMessage(msg.chat.id, 'Адрес получен.', keyboards.IK.completeKeyBoard);
             }
             else{
                 this.#botApi.sendMessage(msg.chat.id, 'Сначала нужно указать дату и время прибытия машины.');
@@ -179,15 +200,20 @@ export default class TaxiBot{
             this.#botApi.sendMessage(msg.chat.id, 'Для заказа заполните форму:', keyboards.RK.inActionKeyBoard);
             this.#botApi.sendMessage(msg.chat.id, 'Ваш заказ на:', dateKeyboard());
         }
-
     };
 
-    _getMyOrders(msg){
-        this.#dbService.getActiveRecord(msg.chat.id).then( (record) =>{
-            if (record !== undefined){
-                this.#botApi.sendMessage(msg.chat.id, 'Ваш заказ: на' + record.address + record.dateStarted.toString());
-            }
-        })
+    _getMyOrders = async(msg)=>{
+        let orders = await this.#dbService.getPostedRecords(msg.chat.id);
+
+        if (orders !== undefined || orders.length !== 0){
+
+            let messageText = "Ваши заказы: ";
+            orders.forEach((order)=>{ messageText =  messageText + order.address});
+            this.#botApi.sendMessage(msg.chat.id, messageText);
+        }
+        else{
+            this.#botApi.sendMessage(msg.chat.id, "У вас пока нет совершенных заказов");
+        }
     };
 
     _cancelOrder = async(msg) => {
